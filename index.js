@@ -246,4 +246,24 @@ app.get('/users', async (req, res) => {
     }
 });
 
+const multer = require('multer');
+const { BlobServiceClient } = require('@azure/storage-blob');
+const upload = multer({ storage: multer.memoryStorage() });
+
+const AZURE_STORAGE_CONNECTION_STRING = process.env.STORAGE_CONN;
+
+app.post('/upload', upload.single('file'), async (req, res) => {
+    const blobServiceClient = BlobServiceClient.fromConnectionString(AZURE_STORAGE_CONNECTION_STRING);
+    const containerClient = blobServiceClient.getContainerClient('files');
+
+    const blobName = req.file.originalname;
+    const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+
+    await blockBlobClient.uploadData(req.file.buffer, {
+        blobHTTPHeaders: { blobContentType: req.file.mimetype }
+    });
+
+    res.send(`File uploaded to: ${blockBlobClient.url}`);
+});
+
 app.listen(port, () => console.log(`App running on port ${port}`));
